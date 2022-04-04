@@ -1,0 +1,15 @@
+Dockerfile
+.git
+google
+*.aar
+*.jar
+*.apk
+
+# Vagrant setup
+.vagrant
+
+# speed up docker build, these are otherwiese irrelevant
+android/android-linux-sdk
+android/demo
+
+
