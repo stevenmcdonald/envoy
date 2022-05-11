@@ -1,4 +1,4 @@
-FROM debian:11.2
+FROM debian:11.3
 
 LABEL org.opencontainers.image.authors="scm@eds.org"
 LABEL description="Build environment for GreatFire Envoy https://github.com/greatfire/envoy"
@@ -35,6 +35,7 @@ RUN LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive apt install \
 	rsync \
 	sudo \
 	unzip \
+	vim-nox \
 	wget
 
 ENV CHROMIUM_SRC_ROOT=/build/chromium/src 
@@ -62,6 +63,8 @@ RUN /build/sdkmanager/sdkmanager.py tools "ndk;21.0.6113669" "platforms;android-
 RUN yes | /build/sdkmanager/sdkmanager.py --licenses
 
 COPY docker /build
+
+RUN groupadd --gid 1000 scm && useradd -ms /bin/bash --uid 1000 --gid 1000 scm
 
 CMD ["/build/start.sh"]
 
