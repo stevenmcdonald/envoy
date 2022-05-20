@@ -64,7 +64,10 @@ RUN yes | /build/sdkmanager/sdkmanager.py --licenses
 
 COPY docker /build
 
-RUN groupadd --gid 1000 scm && useradd -ms /bin/bash --uid 1000 --gid 1000 scm
+# create a normal user
+RUN groupadd --gid 1000 build && useradd -ms /bin/bash --uid 1000 --gid 1000 build
+# let that user sudo with no password
+RUN echo "build ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/build
 
 CMD ["/build/start.sh"]
 
