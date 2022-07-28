@@ -8,7 +8,7 @@
  7 files changed, 135 insertions(+)
 
 diff --git a/chrome/android/chrome_java_sources.gni b/chrome/android/chrome_java_sources.gni
-index 951e6d82d3ef1..5426814145373 100644
+index 73d3eaa3cd046..459b573059f52 100644
 --- a/chrome/android/chrome_java_sources.gni
 +++ b/chrome/android/chrome_java_sources.gni
 @@ -43,6 +43,7 @@ chrome_java_sources = [
@@ -20,10 +20,10 @@ index 951e6d82d3ef1..5426814145373 100644
    "java/src/org/chromium/chrome/browser/SnackbarActivity.java",
    "java/src/org/chromium/chrome/browser/SwipeRefreshHandler.java",
 diff --git a/chrome/android/chrome_public_apk_tmpl.gni b/chrome/android/chrome_public_apk_tmpl.gni
-index 50d6d66e09fb5..ab020f7bcb5f1 100644
+index 266fd80a0eacc..1b893416e5c91 100644
 --- a/chrome/android/chrome_public_apk_tmpl.gni
 +++ b/chrome/android/chrome_public_apk_tmpl.gni
-@@ -232,10 +232,12 @@ template("chrome_public_common_apk_or_module_tmpl") {
+@@ -241,10 +241,12 @@ template("chrome_public_common_apk_or_module_tmpl") {
          "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
          "//third_party/icu:icu_assets",
        ]
@@ -37,7 +37,7 @@ index 50d6d66e09fb5..ab020f7bcb5f1 100644
          library_always_compress = []
        }
 diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
-index ac19edf254cd8..372296cbb12c0 100644
+index b31d14a673bb5..989f69f6f4218 100644
 --- a/chrome/android/java/AndroidManifest.xml
 +++ b/chrome/android/java/AndroidManifest.xml
 @@ -26,6 +26,7 @@ by a child template that "extends" this file.
@@ -48,7 +48,7 @@ index ac19edf254cd8..372296cbb12c0 100644
  
      <!--
        Enable runtime permissions as uses-permission in tip of tree builds
-@@ -923,6 +924,11 @@ by a child template that "extends" this file.
+@@ -931,6 +932,11 @@ by a child template that "extends" this file.
              android:name="org.chromium.chrome.browser.browserservices.ui.trustedwebactivity.DisclosureAcceptanceBroadcastReceiver"
              android:exported="false" />
  
@@ -61,7 +61,7 @@ index ac19edf254cd8..372296cbb12c0 100644
          <service
              android:description="@string/decoder_description"
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
-index 8c9ef3d5620b6..86f9b94807414 100644
+index 720eff3d0678c..62ebca5741ce2 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 @@ -33,6 +33,7 @@ import androidx.annotation.VisibleForTesting;
@@ -72,7 +72,7 @@ index 8c9ef3d5620b6..86f9b94807414 100644
  
  import org.chromium.base.CallbackController;
  import org.chromium.base.CommandLine;
-@@ -1692,6 +1693,8 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
+@@ -1702,6 +1703,8 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
      @Override
      public void performPostInflationStartup() {
          super.performPostInflationStartup();
