@@ -19,6 +19,8 @@ CHROME_VERSION=$MAJOR.$MINOR.$BUILD.$PATCH
 git clean -ffd
 git checkout .
 
+patch --fuzz=0 --no-backup-if-mismatch --forward --strip=1 --reject-file=- --force <"$PATCH_DIR/0000-BUILD.gn.patch"
+
 patch --fuzz=0 --no-backup-if-mismatch --forward --strip=1 --reject-file=- --force <"$PATCH_DIR/0001-Add-envoy_url-to-URLRequestContext.patch"
 patch --fuzz=0 --no-backup-if-mismatch --forward --strip=1 --reject-file=- --force <"$PATCH_DIR/0002-Add-envoy-scheme.patch"
 
