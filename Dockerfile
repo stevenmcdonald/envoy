@@ -1,4 +1,4 @@
-FROM debian:11.3
+FROM debian:11.5
 
 LABEL org.opencontainers.image.authors="scm@eds.org"
 LABEL description="Build environment for GreatFire Envoy https://github.com/greatfire/envoy"
