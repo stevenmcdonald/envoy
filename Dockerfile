@@ -1,4 +1,4 @@
-FROM debian:11.5
+FROM debian:11.6
 
 LABEL org.opencontainers.image.authors="scm@eds.org"
 LABEL description="Build environment for GreatFire Envoy https://github.com/greatfire/envoy"
@@ -20,23 +20,16 @@ RUN LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive apt upgrade
 RUN LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive apt install \
 	build-essential \
 	curl \
-        file \
+	ccache \
 	git \
-	gnupg \
-	lbzip2 \
-	libx11-dev \
 	lsb-release \
-	ninja-build \
-	pkg-config \
-	procps \
-	python \
 	python3 \
 	python3-requests \
-	rsync \
 	sudo \
-	unzip \
-	vim-nox \
-	wget
+	vim-nox
+
+ENV CCACHE_BASEDIR=/build/.ccache
+ENV CCACHE_SLOPPINESS=include_file_mtime
 
 ENV CHROMIUM_SRC_ROOT=/build/chromium/src 
 ENV DEPOT_TOOLS_ROOT=/build/depot_tools
@@ -47,20 +40,22 @@ COPY chromium-build /build/chromium-build
 
 RUN LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive /build/chromium-build/install-build-deps-android.sh
 
-ADD https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u322-b06/OpenJDK8U-jdk_x64_linux_hotspot_8u322b06.tar.gz /build/
+ADD https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jdk_x64_linux_hotspot_8u362b09.tar.gz /build/
+#ADD https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u322-b06/OpenJDK8U-jdk_x64_linux_hotspot_8u322b06.tar.gz /build/
 
 # openjdk-8
 # From: https://adoptium.net/temurin/releases/
-RUN cd /build && /bin/tar zxvf OpenJDK8U-jdk_x64_linux_hotspot_8u322b06.tar.gz && rm OpenJDK8U-jdk_x64_linux_hotspot_8u322b06.tar.gz
+#RUN cd /build && /bin/tar zxvf OpenJDK8U-jdk_x64_linux_hotspot_8u322b06.tar.gz && rm OpenJDK8U-jdk_x64_linux_hotspot_8u322b06.tar.gz
+RUN cd /build && /bin/tar zxvf OpenJDK8U-jdk_x64_linux_hotspot_8u362b09.tar.gz && rm OpenJDK8U-jdk_x64_linux_hotspot_8u362b09.tar.gz
 
-ENV JAVA_HOME=/build/jdk8u322-b06/
-ENV PATH=/build/jdk8u322-b06/bin:$PATH:$DEPOT_TOOLS_ROOT
+ENV JAVA_HOME=/build/jdk8u362-b09/
+ENV PATH=/build/jdk8u363-b09/bin:$PATH:$DEPOT_TOOLS_ROOT
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
 
 RUN cd /build && git clone --depth=1 --branch=0.4 https://gitlab.com/fdroid/sdkmanager.git
 RUN cd /build/sdkmanager && git checkout -B master b5a5640fc4cdc151696b2d27a5886119ebd3a8b7
 RUN /build/sdkmanager/sdkmanager.py tools "ndk;21.0.6113669" "platforms;android-29"
-RUN yes | /build/sdkmanager/sdkmanager.py --licenses
+#RUN yes | /build/sdkmanager/sdkmanager.py --licenses
 
 COPY docker /build
 
