@@ -22,7 +22,9 @@ RUN LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive apt install \
 	curl \
 	ccache \
 	git \
+	icecc \
 	lsb-release \
+	procps \
 	python3 \
 	python3-requests \
 	sudo \
@@ -41,15 +43,13 @@ COPY chromium-build /build/chromium-build
 RUN LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive /build/chromium-build/install-build-deps-android.sh
 
 ADD https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jdk_x64_linux_hotspot_8u362b09.tar.gz /build/
-#ADD https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u322-b06/OpenJDK8U-jdk_x64_linux_hotspot_8u322b06.tar.gz /build/
 
 # openjdk-8
 # From: https://adoptium.net/temurin/releases/
-#RUN cd /build && /bin/tar zxvf OpenJDK8U-jdk_x64_linux_hotspot_8u322b06.tar.gz && rm OpenJDK8U-jdk_x64_linux_hotspot_8u322b06.tar.gz
 RUN cd /build && /bin/tar zxvf OpenJDK8U-jdk_x64_linux_hotspot_8u362b09.tar.gz && rm OpenJDK8U-jdk_x64_linux_hotspot_8u362b09.tar.gz
 
 ENV JAVA_HOME=/build/jdk8u362-b09/
-ENV PATH=/build/jdk8u363-b09/bin:$PATH:$DEPOT_TOOLS_ROOT
+ENV PATH=/build/jdk8u362-b09/bin:$PATH:$DEPOT_TOOLS_ROOT
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
 
 RUN cd /build && git clone --depth=1 --branch=0.4 https://gitlab.com/fdroid/sdkmanager.git
@@ -63,6 +63,10 @@ COPY docker /build
 RUN groupadd --gid 1000 build && useradd -ms /bin/bash --uid 1000 --gid 1000 build
 # let that user sudo with no password
 RUN echo "build ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/build
+
+EXPOSE 10245 8765/TCP 8765/UDP 8766
+
+USER build
 
 CMD ["/build/start.sh"]
 
