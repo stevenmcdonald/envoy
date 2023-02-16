@@ -43,32 +43,36 @@ RUN LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive apt install \
 	build-essential \
 	curl \
 	ccache \
+	file \
 	git \
 	lsb-release \
+	ninja-build \
 	procps \
 	python3 \
 	python3-requests \
 	sudo \
 	vim-nox
 
-ENV CCACHE_BASEDIR=/build/.ccache
-ENV CCACHE_SLOPPINESS=time_macros
+
+RUN mkdir /build
+COPY chromium-build /build/chromium-build
 
 ENV CHROMIUM_SRC_ROOT=/build/chromium/src 
 ENV DEPOT_TOOLS_ROOT=/build/depot_tools
 ENV DEPOT_TOOLS_UPDATE=0
 
-RUN mkdir /build
-COPY chromium-build /build/chromium-build
-
 RUN LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive /build/chromium-build/install-build-deps-android.sh
 
 WORKDIR /build
 
-RUN git clone --single-branch --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
+RUN git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
 
 # copy Java from intermediate container
 COPY --from=java-inter /jdk8u362-b09 .
+
+ENV CCACHE_BASEDIR=/build/.ccache
+ENV CCACHE_SLOPPINESS=time_macros
+
 
 ENV JAVA_HOME=/build/jdk8u362-b09/
 ENV PATH=/build/jdk8u362-b09/bin:$PATH:$DEPOT_TOOLS_ROOT
@@ -77,7 +81,7 @@ ENV ANDROID_SDK_ROOT=/opt/android-sdk
 RUN git clone --depth=1 --branch=0.4 https://gitlab.com/fdroid/sdkmanager.git
 RUN cd sdkmanager && git checkout -B master b5a5640fc4cdc151696b2d27a5886119ebd3a8b7
 RUN ./sdkmanager/sdkmanager.py tools "ndk;21.0.6113669" "platforms;android-29"
-#RUN yes | /build/sdkmanager/sdkmanager.py --licenses
+RUN yes | /build/sdkmanager/sdkmanager.py --licenses
 
 COPY docker .
 
@@ -85,8 +89,6 @@ COPY docker .
 RUN groupadd --gid 1000 build && useradd -ms /bin/bash --uid 1000 --gid 1000 build
 # let that user sudo with no password
 RUN echo "build ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/build
-
-EXPOSE 10245 8765/TCP 8765/UDP 8766
 
 USER build
 
