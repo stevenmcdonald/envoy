@@ -1,9 +1,9 @@
  chrome/browser/ssl/ssl_config_service_manager.cc   | 11 +++++
  .../api/src/org/chromium/net/CronetEngine.java     |  5 ++
- .../src/org/chromium/net/ICronetEngineBuilder.java |  1 +
- .../cronet/android/cronet_context_adapter.cc       |  2 +
+ .../src/org/chromium/net/ICronetEngineBuilder.java |  2 +
+ .../cronet/android/cronet_context_adapter.cc       |  1 +
  .../chromium/net/impl/CronetEngineBuilderImpl.java | 11 +++++
- .../chromium/net/impl/CronetUrlRequestContext.java | 10 ++--
+ .../android/proto/request_context_config.proto     |  1 +
  .../cronet_sample_apk/CronetSampleActivity.java    |  1 +
  components/cronet/native/cronet.idl                |  1 +
  components/cronet/native/engine.cc                 |  1 +
@@ -18,18 +18,18 @@
  net/spdy/spdy_http_utils.cc                        |  5 ++
  net/ssl/ssl_config_service_defaults.cc             |  4 ++
  net/ssl/ssl_config_service_defaults.h              |  1 +
- net/url_request/url_request_context.h              |  4 ++
+ net/url_request/url_request_context.h              |  5 ++
  net/url_request/url_request_context_builder.cc     | 55 ++++++++++++++++++++--
  net/url_request/url_request_context_builder.h      |  2 +
  net/url_request/url_request_http_job.cc            | 43 +++++++++++++++++
- 24 files changed, 284 insertions(+), 12 deletions(-)
+ 24 files changed, 281 insertions(+), 7 deletions(-)
 
 diff --git a/chrome/browser/ssl/ssl_config_service_manager.cc b/chrome/browser/ssl/ssl_config_service_manager.cc
-index 6537a65ed4cd3..66cf928be46cb 100644
+index 682a006491ab4..c5afa9ce4fff8 100644
 --- a/chrome/browser/ssl/ssl_config_service_manager.cc
 +++ b/chrome/browser/ssl/ssl_config_service_manager.cc
 @@ -13,6 +13,7 @@
- #include "base/feature_list.h"
+ #include "base/functional/bind.h"
  #include "base/location.h"
  #include "base/strings/string_util.h"
 +#include "base/strings/string_split.h"
@@ -44,7 +44,7 @@ index 6537a65ed4cd3..66cf928be46cb 100644
  #include "net/cert/cert_verifier.h"
  #include "net/ssl/ssl_cipher_suite_names.h"
  #include "net/ssl/ssl_config_service.h"
-@@ -177,6 +179,7 @@ void SSLConfigServiceManager::RegisterPrefs(PrefRegistrySimple* registry) {
+@@ -183,6 +185,7 @@ void SSLConfigServiceManager::RegisterPrefs(PrefRegistrySimple* registry) {
  
  void SSLConfigServiceManager::AddToNetworkContextParams(
      network::mojom::NetworkContextParams* network_context_params) {
@@ -52,7 +52,7 @@ index 6537a65ed4cd3..66cf928be46cb 100644
    network_context_params->initial_ssl_config = GetSSLConfigFromPrefs();
    mojo::Remote<network::mojom::SSLConfigClient> ssl_config_client;
    network_context_params->ssl_config_client_receiver =
-@@ -250,6 +253,14 @@ void SSLConfigServiceManager::OnDisabledCipherSuitesChange(
+@@ -264,6 +267,14 @@ void SSLConfigServiceManager::OnDisabledCipherSuitesChange(
    const base::Value::List& list =
        local_state->GetList(prefs::kCipherSuiteBlacklist);
    disabled_cipher_suites_ = ParseCipherSuites(ValueListToStringVector(list));
@@ -68,11 +68,11 @@ index 6537a65ed4cd3..66cf928be46cb 100644
  
  void SSLConfigServiceManager::CacheVariationsPolicy(PrefService* local_state) {
 diff --git a/components/cronet/android/api/src/org/chromium/net/CronetEngine.java b/components/cronet/android/api/src/org/chromium/net/CronetEngine.java
-index 9941d67bbd97a..af658b248e122 100644
+index 76ced329d9d89..9ef345357aec6 100644
 --- a/components/cronet/android/api/src/org/chromium/net/CronetEngine.java
 +++ b/components/cronet/android/api/src/org/chromium/net/CronetEngine.java
-@@ -113,6 +113,11 @@ public abstract class CronetEngine {
-             return this;
+@@ -111,6 +111,11 @@ public abstract class CronetEngine {
+             public abstract void loadLibrary(String libName);
          }
  
 +        public Builder setEnvoyUrl(String envoyUrl) {
@@ -81,40 +81,33 @@ index 9941d67bbd97a..af658b248e122 100644
 +        }
 +
          /**
-          * Sets directory for HTTP Cache and Cookie Storage. The directory must
-          * exist.
+          * Reference to the actual builder implementation. {@hide exclude from JavaDoc}.
+          */
 diff --git a/components/cronet/android/api/src/org/chromium/net/ICronetEngineBuilder.java b/components/cronet/android/api/src/org/chromium/net/ICronetEngineBuilder.java
-index 4cdb0bf790198..e645c8218dfc8 100644
+index 42b7b0c1438bc..1df050d6b2262 100644
 --- a/components/cronet/android/api/src/org/chromium/net/ICronetEngineBuilder.java
 +++ b/components/cronet/android/api/src/org/chromium/net/ICronetEngineBuilder.java
-@@ -36,6 +36,7 @@ public abstract class ICronetEngineBuilder {
-     public abstract ICronetEngineBuilder setStoragePath(String value);
-     public abstract ICronetEngineBuilder setUserAgent(String userAgent);
+@@ -74,6 +74,8 @@ public abstract class ICronetEngineBuilder {
+ 
      public abstract String getDefaultUserAgent();
+ 
 +    public abstract ICronetEngineBuilder setEnvoyUrl(String envoyUrl);
++
      public abstract ExperimentalCronetEngine build();
  
-     // Experimental API methods.
+     /**
 diff --git a/components/cronet/android/cronet_context_adapter.cc b/components/cronet/android/cronet_context_adapter.cc
-index 8ae0e429e185e..99fc5f16ae2ac 100644
+index e33cdc105cbd2..9346961e4d654 100644
 --- a/components/cronet/android/cronet_context_adapter.cc
 +++ b/components/cronet/android/cronet_context_adapter.cc
-@@ -243,6 +243,7 @@ int CronetContextAdapter::default_load_flags() const {
- static jlong JNI_CronetUrlRequestContext_CreateRequestContextConfig(
-     JNIEnv* env,
-     const JavaParamRef<jstring>& juser_agent,
-+    const JavaParamRef<jstring>& jenvoy_url,
-     const JavaParamRef<jstring>& jstorage_path,
-     jboolean jquic_enabled,
-     const JavaParamRef<jstring>& jquic_default_user_agent_id,
-@@ -266,6 +267,7 @@ static jlong JNI_CronetUrlRequestContext_CreateRequestContextConfig(
-           ConvertNullableJavaStringToUTF8(env, jstorage_path),
-           /* accept_languages */ std::string(),
-           ConvertNullableJavaStringToUTF8(env, juser_agent),
-+          ConvertNullableJavaStringToUTF8(env, jenvoy_url),
-           ConvertNullableJavaStringToUTF8(
-               env, jexperimental_quic_connection_options),
-           base::WrapUnique(
+@@ -252,6 +252,7 @@ static jlong JNI_CronetUrlRequestContext_CreateRequestContextConfig(
+           configOptions.http_cache_max_size(), configOptions.disable_cache(),
+           configOptions.storage_path(),
+           /* accept_languages */ std::string(), configOptions.user_agent(),
++          configOptions.envoy_url(),
+           configOptions.experimental_options(),
+           base::WrapUnique(reinterpret_cast<net::CertVerifier*>(
+               configOptions.mock_cert_verifier())),
 diff --git a/components/cronet/android/java/src/org/chromium/net/impl/CronetEngineBuilderImpl.java b/components/cronet/android/java/src/org/chromium/net/impl/CronetEngineBuilderImpl.java
 index bb406f41cd9f1..f5647db0643ec 100644
 --- a/components/cronet/android/java/src/org/chromium/net/impl/CronetEngineBuilderImpl.java
@@ -144,34 +137,16 @@ index bb406f41cd9f1..f5647db0643ec 100644
      @Override
      public CronetEngineBuilderImpl setStoragePath(String value) {
          if (!new File(value).isDirectory()) {
-diff --git a/components/cronet/android/java/src/org/chromium/net/impl/CronetUrlRequestContext.java b/components/cronet/android/java/src/org/chromium/net/impl/CronetUrlRequestContext.java
-index e4c2df648b454..0ac80eb23964c 100644
---- a/components/cronet/android/java/src/org/chromium/net/impl/CronetUrlRequestContext.java
-+++ b/components/cronet/android/java/src/org/chromium/net/impl/CronetUrlRequestContext.java
-@@ -249,7 +249,7 @@ public class CronetUrlRequestContext extends CronetEngineBase {
-     public static long createNativeUrlRequestContextConfig(CronetEngineBuilderImpl builder) {
-         final long urlRequestContextConfig =
-                 CronetUrlRequestContextJni.get().createRequestContextConfig(builder.getUserAgent(),
--                        builder.storagePath(), builder.quicEnabled(),
-+                        builder.getEnvoyUrl(), builder.storagePath(), builder.quicEnabled(),
-                         builder.getDefaultQuicUserAgentId(), builder.http2Enabled(),
-                         builder.brotliEnabled(), builder.cacheDisabled(), builder.httpCacheMode(),
-                         builder.httpCacheMaxSize(), builder.experimentalOptions(),
-@@ -785,10 +785,10 @@ public class CronetUrlRequestContext extends CronetEngineBase {
-     // Native methods are implemented in cronet_url_request_context_adapter.cc.
-     @NativeMethods
-     interface Natives {
--        long createRequestContextConfig(String userAgent, String storagePath, boolean quicEnabled,
--                String quicUserAgentId, boolean http2Enabled, boolean brotliEnabled,
--                boolean disableCache, int httpCacheMode, long httpCacheMaxSize,
--                String experimentalOptions, long mockCertVerifier,
-+        long createRequestContextConfig(String userAgent, String envoyUrl, String storagePath,
-+                boolean quicEnabled, String quicUserAgentId, boolean http2Enabled,
-+                boolean brotliEnabled, boolean disableCache, int httpCacheMode,
-+                long httpCacheMaxSize, String experimentalOptions, long mockCertVerifier,
-                 boolean enableNetworkQualityEstimator,
-                 boolean bypassPublicKeyPinningForLocalTrustAnchors, int networkThreadPriority);
- 
+diff --git a/components/cronet/android/proto/request_context_config.proto b/components/cronet/android/proto/request_context_config.proto
+index 348bd84d5e23e..0d94904bd2464 100644
+--- a/components/cronet/android/proto/request_context_config.proto
++++ b/components/cronet/android/proto/request_context_config.proto
+@@ -21,4 +21,5 @@ message RequestContextConfigOptions {
+   optional bool enable_network_quality_estimator = 12;
+   optional bool bypass_public_key_pinning_for_local_trust_anchors = 13;
+   optional int32 network_thread_priority = 14;
++  optional string envoy_url = 99;
+ }
 diff --git a/components/cronet/android/sample/src/org/chromium/cronet_sample_apk/CronetSampleActivity.java b/components/cronet/android/sample/src/org/chromium/cronet_sample_apk/CronetSampleActivity.java
 index 5d3a93c519b2b..9538b5072539a 100644
 --- a/components/cronet/android/sample/src/org/chromium/cronet_sample_apk/CronetSampleActivity.java
@@ -197,7 +172,7 @@ index ddb3ad5b3b705..0bdf3ef4059b0 100644
    /**
     * Sets a default value for the Accept-Language header value for UrlRequests
 diff --git a/components/cronet/native/engine.cc b/components/cronet/native/engine.cc
-index 6f27d1a6d0059..d6ea7f8c8e3e0 100644
+index f1f74cb00af4c..f0d603194d5df 100644
 --- a/components/cronet/native/engine.cc
 +++ b/components/cronet/native/engine.cc
 @@ -149,6 +149,7 @@ Cronet_RESULT Cronet_EngineImpl::StartWithParams(
@@ -325,10 +300,10 @@ index 0cbbdce569e14..f69f8e5d3cd49 100644
  
    Cronet_Engine_StartWithParams(cronet_engine, engine_params);
 diff --git a/components/cronet/url_request_context_config.cc b/components/cronet/url_request_context_config.cc
-index b03411758c0d7..775e51eedc781 100644
+index d6855da3524f5..032606a8c1182 100644
 --- a/components/cronet/url_request_context_config.cc
 +++ b/components/cronet/url_request_context_config.cc
-@@ -276,6 +276,46 @@ URLRequestContextConfig::PreloadedNelAndReportingHeader::
+@@ -274,6 +274,46 @@ URLRequestContextConfig::PreloadedNelAndReportingHeader::
  URLRequestContextConfig::PreloadedNelAndReportingHeader::
      ~PreloadedNelAndReportingHeader() = default;
  
@@ -375,7 +350,7 @@ index b03411758c0d7..775e51eedc781 100644
  URLRequestContextConfig::URLRequestContextConfig(
      bool enable_quic,
      const std::string& quic_user_agent_id,
-@@ -330,6 +370,7 @@ URLRequestContextConfig::CreateURLRequestContextConfig(
+@@ -328,6 +368,7 @@ URLRequestContextConfig::CreateURLRequestContextConfig(
      const std::string& storage_path,
      const std::string& accept_language,
      const std::string& user_agent,
@@ -383,7 +358,7 @@ index b03411758c0d7..775e51eedc781 100644
      const std::string& unparsed_experimental_options,
      std::unique_ptr<net::CertVerifier> mock_cert_verifier,
      bool enable_network_quality_estimator,
-@@ -348,7 +389,7 @@ URLRequestContextConfig::CreateURLRequestContextConfig(
+@@ -346,7 +387,7 @@ URLRequestContextConfig::CreateURLRequestContextConfig(
    return base::WrapUnique(new URLRequestContextConfig(
        enable_quic, quic_user_agent_id, enable_spdy, enable_brotli, http_cache,
        http_cache_max_size, load_disable_cache, storage_path, accept_language,
@@ -392,7 +367,7 @@ index b03411758c0d7..775e51eedc781 100644
        std::move(mock_cert_verifier), enable_network_quality_estimator,
        bypass_public_key_pinning_for_local_trust_anchors,
        network_thread_priority));
-@@ -871,6 +912,7 @@ void URLRequestContextConfig::ConfigureURLRequestContextBuilder(
+@@ -858,6 +899,7 @@ void URLRequestContextConfig::ConfigureURLRequestContextBuilder(
    }
    context_builder->set_accept_language(accept_language);
    context_builder->set_user_agent(user_agent);
@@ -400,7 +375,7 @@ index b03411758c0d7..775e51eedc781 100644
    net::HttpNetworkSessionParams session_params;
    session_params.enable_http2 = enable_spdy;
    session_params.enable_quic = enable_quic;
-@@ -906,8 +948,8 @@ URLRequestContextConfigBuilder::Build() {
+@@ -896,8 +938,8 @@ URLRequestContextConfigBuilder::Build() {
    return URLRequestContextConfig::CreateURLRequestContextConfig(
        enable_quic, quic_user_agent_id, enable_spdy, enable_brotli, http_cache,
        http_cache_max_size, load_disable_cache, storage_path, accept_language,
@@ -412,10 +387,10 @@ index b03411758c0d7..775e51eedc781 100644
        network_thread_priority);
  }
 diff --git a/components/cronet/url_request_context_config.h b/components/cronet/url_request_context_config.h
-index 6561e1ccec536..42e076ef83854 100644
+index ebdac59db5c0b..0359a8bcc2af3 100644
 --- a/components/cronet/url_request_context_config.h
 +++ b/components/cronet/url_request_context_config.h
-@@ -130,6 +130,8 @@ struct URLRequestContextConfig {
+@@ -129,6 +129,8 @@ struct URLRequestContextConfig {
    // User-Agent request header field.
    const std::string user_agent;
  
@@ -424,7 +399,7 @@ index 6561e1ccec536..42e076ef83854 100644
    // Certificate verifier for testing.
    std::unique_ptr<net::CertVerifier> mock_cert_verifier;
  
-@@ -208,6 +210,7 @@ struct URLRequestContextConfig {
+@@ -207,6 +209,7 @@ struct URLRequestContextConfig {
        const std::string& accept_language,
        // User-Agent request header field.
        const std::string& user_agent,
@@ -432,7 +407,7 @@ index 6561e1ccec536..42e076ef83854 100644
        // JSON encoded experimental options.
        const std::string& unparsed_experimental_options,
        // MockCertVerifier to use for testing purposes.
-@@ -223,6 +226,44 @@ struct URLRequestContextConfig {
+@@ -222,6 +225,44 @@ struct URLRequestContextConfig {
        absl::optional<double> network_thread_priority);
  
   private:
@@ -477,7 +452,7 @@ index 6561e1ccec536..42e076ef83854 100644
    URLRequestContextConfig(
        // Enable QUIC.
        bool enable_quic,
-@@ -316,6 +357,7 @@ struct URLRequestContextConfigBuilder {
+@@ -315,6 +356,7 @@ struct URLRequestContextConfigBuilder {
    std::string accept_language = "";
    // User-Agent request header field.
    std::string user_agent = "";
@@ -499,10 +474,10 @@ index 521ebc8f5023e..9e5dbfa8c41e8 100644
  };
  
 diff --git a/net/spdy/spdy_http_utils.cc b/net/spdy/spdy_http_utils.cc
-index 59f0503786100..06c35d0e48a5b 100644
+index 4bb595734fd17..78461d14b31a8 100644
 --- a/net/spdy/spdy_http_utils.cc
 +++ b/net/spdy/spdy_http_utils.cc
-@@ -111,6 +111,11 @@ void CreateSpdyHeadersFromHttpRequest(const HttpRequestInfo& info,
+@@ -108,6 +108,11 @@ void CreateSpdyHeadersFromHttpRequest(const HttpRequestInfo& info,
    HttpRequestHeaders::Iterator it(request_headers);
    while (it.GetNext()) {
      std::string name = base::ToLowerASCII(it.name());
@@ -542,10 +517,10 @@ index 4bf47d05b527f..4cc06b182d624 100644
    // Returns the default SSL config settings.
    SSLContextConfig GetSSLContextConfig() override;
 diff --git a/net/url_request/url_request_context.h b/net/url_request/url_request_context.h
-index 4ee83f194cbc3..f7370f0487ad5 100644
+index d6b063321cd02..e7454c5d7d5c8 100644
 --- a/net/url_request/url_request_context.h
 +++ b/net/url_request/url_request_context.h
-@@ -231,6 +231,9 @@ class NET_EXPORT URLRequestContext final {
+@@ -230,6 +230,9 @@ class NET_EXPORT URLRequestContext final {
    // context has been bound to.
    handles::NetworkHandle bound_network() const { return bound_network_; }
  
@@ -555,16 +530,17 @@ index 4ee83f194cbc3..f7370f0487ad5 100644
    void AssertCalledOnValidThread() {
      DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
    }
-@@ -359,6 +362,7 @@ class NET_EXPORT URLRequestContext final {
-   // Triggers a DCHECK if a NetworkAnonymizationKey/IsolationInfo is not
+@@ -360,6 +363,8 @@ class NET_EXPORT URLRequestContext final {
    // provided to a request when true.
-   bool require_network_isolation_key_ = false;
-+  std::string envoy_url_;
+   bool require_network_anonymization_key_ = false;
  
++  std::string envoy_url_;
++
    handles::NetworkHandle bound_network_;
  
+   THREAD_CHECKER(thread_checker_);
 diff --git a/net/url_request/url_request_context_builder.cc b/net/url_request/url_request_context_builder.cc
-index 6ee8f97b02225..883d2e49dc032 100644
+index 78b436cbc18c9..047e68ded236a 100644
 --- a/net/url_request/url_request_context_builder.cc
 +++ b/net/url_request/url_request_context_builder.cc
 @@ -13,6 +13,7 @@
@@ -572,9 +548,9 @@ index 6ee8f97b02225..883d2e49dc032 100644
  #include "base/notreached.h"
  #include "base/strings/string_util.h"
 +#include "base/strings/string_split.h"
+ #include "base/task/sequenced_task_runner.h"
  #include "base/task/single_thread_task_runner.h"
  #include "base/task/thread_pool.h"
- #include "base/threading/thread_task_runner_handle.h"
 @@ -21,6 +22,7 @@
  #include "net/base/cache_type.h"
  #include "net/base/net_errors.h"
@@ -610,8 +586,8 @@ index 6ee8f97b02225..883d2e49dc032 100644
  void URLRequestContextBuilder::set_http_user_agent_settings(
      std::unique_ptr<HttpUserAgentSettings> http_user_agent_settings) {
    http_user_agent_settings_ = std::move(http_user_agent_settings);
-@@ -278,6 +286,8 @@ std::unique_ptr<URLRequestContext> URLRequestContextBuilder::Build() {
-   context->set_require_network_isolation_key(require_network_isolation_key_);
+@@ -279,6 +287,8 @@ std::unique_ptr<URLRequestContext> URLRequestContextBuilder::Build() {
+       require_network_anonymization_key_);
    context->set_network_quality_estimator(network_quality_estimator_);
  
 +  if (!envoy_url_.empty())
@@ -619,7 +595,7 @@ index 6ee8f97b02225..883d2e49dc032 100644
    if (http_user_agent_settings_) {
      context->set_http_user_agent_settings(std::move(http_user_agent_settings_));
    } else {
-@@ -363,13 +373,52 @@ std::unique_ptr<URLRequestContext> URLRequestContextBuilder::Build() {
+@@ -364,13 +374,52 @@ std::unique_ptr<URLRequestContext> URLRequestContextBuilder::Build() {
      }
    }
    host_resolver_->SetRequestContext(context.get());
@@ -676,7 +652,7 @@ index 6ee8f97b02225..883d2e49dc032 100644
  
    if (http_auth_handler_factory_) {
 diff --git a/net/url_request/url_request_context_builder.h b/net/url_request/url_request_context_builder.h
-index d2220a6a86bf1..dd0c3bdd107dd 100644
+index ae211c15be4b1..be89092a2e7ee 100644
 --- a/net/url_request/url_request_context_builder.h
 +++ b/net/url_request/url_request_context_builder.h
 @@ -193,6 +193,7 @@ class NET_EXPORT URLRequestContextBuilder {
@@ -687,7 +663,7 @@ index d2220a6a86bf1..dd0c3bdd107dd 100644
  
    // Makes the created URLRequestContext use a particular HttpUserAgentSettings
    // object. Not compatible with set_accept_language() / set_user_agent().
-@@ -410,6 +411,7 @@ class NET_EXPORT URLRequestContextBuilder {
+@@ -407,6 +408,7 @@ class NET_EXPORT URLRequestContextBuilder {
  
    std::string accept_language_;
    std::string user_agent_;
@@ -696,26 +672,19 @@ index d2220a6a86bf1..dd0c3bdd107dd 100644
  
    bool http_cache_enabled_ = true;
 diff --git a/net/url_request/url_request_http_job.cc b/net/url_request/url_request_http_job.cc
-index 0878808a8dc72..b9b6212bc0d64 100644
+index 78206280cfbb8..c3eb63d40b288 100644
 --- a/net/url_request/url_request_http_job.cc
 +++ b/net/url_request/url_request_http_job.cc
-@@ -18,6 +18,7 @@
- #include "base/compiler_specific.h"
- #include "base/containers/adapters.h"
- #include "base/file_version_info.h"
-+#include "crypto/sha2.h"
- #include "base/location.h"
- #include "base/memory/ptr_util.h"
- #include "base/metrics/field_trial.h"
-@@ -34,6 +35,7 @@
+@@ -32,6 +32,8 @@
  #include "base/types/optional_util.h"
  #include "base/values.h"
  #include "build/build_config.h"
 +#include "base/strings/escape.h"
++#include "crypto/sha2.h"
  #include "net/base/features.h"
  #include "net/base/host_port_pair.h"
  #include "net/base/http_user_agent_settings.h"
-@@ -558,6 +560,47 @@ void URLRequestHttpJob::StartTransactionInternal() {
+@@ -588,6 +590,47 @@ void URLRequestHttpJob::StartTransactionInternal() {
  
        if (!throttling_entry_.get() ||
            !throttling_entry_->ShouldRejectRequest(*request_)) {
