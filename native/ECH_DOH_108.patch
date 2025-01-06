@@ -1,9 +1,9 @@
- components/cronet/url_request_context_config.cc | 54 +++++++++++++++++++++++++
+ components/cronet/url_request_context_config.cc | 33 +++++++++++++++++++++++++
  net/base/features.cc                            |  2 +-
- 2 files changed, 55 insertions(+), 1 deletion(-)
+ 2 files changed, 34 insertions(+), 1 deletion(-)
 
 diff --git a/components/cronet/url_request_context_config.cc b/components/cronet/url_request_context_config.cc
-index 080cd057d8ed6..79aa2092acc0d 100644
+index 080cd057d8ed6..30ecf7ce23174 100644
 --- a/components/cronet/url_request_context_config.cc
 +++ b/components/cronet/url_request_context_config.cc
 @@ -29,6 +29,7 @@
@@ -14,7 +14,7 @@ index 080cd057d8ed6..79aa2092acc0d 100644
  #include "net/http/http_network_session.h"
  #include "net/http/http_server_properties.h"
  #include "net/log/net_log.h"
-@@ -928,6 +929,59 @@ void URLRequestContextConfig::ConfigureURLRequestContextBuilder(
+@@ -928,6 +929,38 @@ void URLRequestContextConfig::ConfigureURLRequestContextBuilder(
    SetContextBuilderExperimentalOptions(context_builder, &session_params,
                                         quic_context->params(), bound_network);
  
@@ -26,36 +26,15 @@ index 080cd057d8ed6..79aa2092acc0d 100644
 +  // force secure DNS
 +  overrides.secure_dns_mode = net::SecureDnsMode::kSecure;
 +
-+  // set DNS.sb, Quad9, Cloudflare, and NextDNS as DoH servers
++  // set Cloudflare as DoH server, security.cloudflare-dns.com seems less blocked
 +  overrides.dns_over_https_config = net::DnsOverHttpsConfig::FromString(R"(
 +    {
 +      "servers": [{
-+        "template": "https://chrome.cloudflare-dns.com/dns-query",
++        "template": "https://security.cloudflare-dns.com/dns-query",
 +        "endpoints": [{
-+          "ips": ["1.1.1.1", "2606:4700:4700::1111"]
++          "ips": ["1.1.1.2", "2606:4700:4700::1112"]
 +        }, {
-+          "ips": ["1.0.0.1", "2606:4700:4700::1001"]
-+        }]
-+      },{
-+        "template": "https://chromium.dns.nextdns.io",
-+        "endpoints": [{
-+          "ips": ["209.209.57.165", "2001:19f0:ac01:170:5400:2ff:fec8:72c8"]
-+        },{
-+          "ips": ["104.238.181.28", "2a0e:6901:410:25:5054:ff:fe1c:7c81"]
-+        }]
-+      },{
-+        "template": "https://dns.quad9.net/dns-query",
-+        "endpoints": [{
-+          "ips": ["9.9.9.9", "2620:fe::fe"]
-+        }, {
-+          "ips": ["149.112.112.112", "2620:fe::9"]
-+        }]
-+      },{
-+        "template": "https://doh.dns.sb/dns-query",
-+        "endpoints": [{
-+          "ips": ["45.11.45.11"]
-+        }, {
-+          "ips": ["185.222.222.222"]
++          "ips": ["1.0.0.2", "2606:4700:4700::1002"]
 +        }]
 +      }]
 +    }
