@@ -1,9 +1,9 @@
- components/cronet/url_request_context_config.cc | 47 +++++++++++++++++++++++++
+ components/cronet/url_request_context_config.cc | 33 +++++++++++++++++++++++++
  net/base/features.cc                            |  2 +-
- 2 files changed, 48 insertions(+), 1 deletion(-)
+ 2 files changed, 34 insertions(+), 1 deletion(-)
 
 diff --git a/components/cronet/url_request_context_config.cc b/components/cronet/url_request_context_config.cc
-index 080cd057d8ed6..a82b35be76a69 100644
+index 080cd057d8ed6..74eae3c381f4a 100644
 --- a/components/cronet/url_request_context_config.cc
 +++ b/components/cronet/url_request_context_config.cc
 @@ -29,6 +29,7 @@
@@ -14,7 +14,7 @@ index 080cd057d8ed6..a82b35be76a69 100644
  #include "net/http/http_network_session.h"
  #include "net/http/http_server_properties.h"
  #include "net/log/net_log.h"
-@@ -928,6 +929,52 @@ void URLRequestContextConfig::ConfigureURLRequestContextBuilder(
+@@ -928,6 +929,38 @@ void URLRequestContextConfig::ConfigureURLRequestContextBuilder(
    SetContextBuilderExperimentalOptions(context_builder, &session_params,
                                         quic_context->params(), bound_network);
  
@@ -30,25 +30,11 @@ index 080cd057d8ed6..a82b35be76a69 100644
 +  overrides.dns_over_https_config = net::DnsOverHttpsConfig::FromString(R"(
 +    {
 +      "servers": [{
-+        "template": "https://cloudflare-dns.com/dns-query",
++        "template": "https://1.1.1.1/dns-query",
 +        "endpoints": [{
-+          "ips": ["2606:4700:4700::1111"]
++          "ips": ["1.1.1.1", "2606:4700:4700::1111"]
 +        }, {
-+          "ips": ["2606:4700:4700::1001"]
-+        }]
-+        }, {
-+        "template": "https://doh.dns.sb/dns-query",
-+        "endpoints": [{
-+          "ips": ["2a09::"]
-+        }, {
-+          "ips": ["2a11::"]
-+        }]
-+        }, {
-+        "template": "https://doh.quad9.net/dns-query",
-+        "endpoints": [{
-+          "ips": ["2620:fe::fe"]
-+        }, {
-+          "ips": ["2620:fe::fe:9"]
++          "ips": ["1.0.0.1", "2606:4700:4700::1001"]
 +        }]
 +      }]
 +    }
