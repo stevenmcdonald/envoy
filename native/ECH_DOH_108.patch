@@ -1,24 +1,31 @@
- components/cronet/url_request_context_config.cc | 33 +++++++++++++++++++++++++
+ components/cronet/url_request_context_config.cc | 44 +++++++++++++++++++++++++
  net/base/features.cc                            |  2 +-
- 2 files changed, 34 insertions(+), 1 deletion(-)
+ 2 files changed, 45 insertions(+), 1 deletion(-)
 
 diff --git a/components/cronet/url_request_context_config.cc b/components/cronet/url_request_context_config.cc
-index 080cd057d8ed6..74eae3c381f4a 100644
+index 080cd057d8ed6..f6947b3cb17d7 100644
 --- a/components/cronet/url_request_context_config.cc
 +++ b/components/cronet/url_request_context_config.cc
-@@ -29,6 +29,7 @@
- #include "net/dns/context_host_resolver.h"
- #include "net/dns/host_resolver.h"
- #include "net/dns/mapped_host_resolver.h"
-+#include "net/dns/public/dns_protocol.h"
- #include "net/http/http_network_session.h"
- #include "net/http/http_server_properties.h"
- #include "net/log/net_log.h"
-@@ -928,6 +929,38 @@ void URLRequestContextConfig::ConfigureURLRequestContextBuilder(
+@@ -12,6 +12,7 @@
+ #include "base/json/json_reader.h"
+ #include "base/json/json_writer.h"
+ #include "base/logging.h"
++#include "base/strings/escape.h"
+ #include "base/strings/string_number_conversions.h"
+ #include "base/strings/string_piece.h"
+ #include "base/strings/string_split.h"
+@@ -20,6 +21,7 @@
+ #include "build/build_config.h"
+ #include "components/cronet/stale_host_resolver.h"
+ #include "net/base/address_family.h"
++#include "net/base/url_util.h"
+ #include "net/cert/caching_cert_verifier.h"
+ #include "net/cert/cert_verifier.h"
+ #include "net/cert/cert_verify_proc.h"
+@@ -928,6 +930,48 @@ void URLRequestContextConfig::ConfigureURLRequestContextBuilder(
    SetContextBuilderExperimentalOptions(context_builder, &session_params,
                                         quic_context->params(), bound_network);
  
-+
 +  // ENVOY
 +
 +  net::DnsConfigOverrides overrides = net::DnsConfigOverrides::CreateOverridingEverythingWithDefaults();
@@ -26,8 +33,7 @@ index 080cd057d8ed6..74eae3c381f4a 100644
 +  // force secure DNS
 +  overrides.secure_dns_mode = net::SecureDnsMode::kSecure;
 +
-+  // set Cloudflare as DoH server, security.cloudflare-dns.com seems less blocked
-+  overrides.dns_over_https_config = net::DnsOverHttpsConfig::FromString(R"(
++  std::string dnsConfig = R"(
 +    {
 +      "servers": [{
 +        "template": "https://1.1.1.1/dns-query",
@@ -38,7 +44,19 @@ index 080cd057d8ed6..74eae3c381f4a 100644
 +        }]
 +      }]
 +    }
-+  )");
++  )";
++
++  GURL envoy_temp = GURL(envoy_url);
++  for (net::QueryIterator it(envoy_temp); !it.IsAtEnd(); it.Advance()) {
++    auto key = it.GetKey();
++    auto value = it.GetUnescapedValue();
++    if (key.compare("dnsConfig") == 0) {
++      dnsConfig = base::UnescapeURLComponent(value, base::UnescapeRule::NORMAL);
++    }
++  }
++
++  // set Cloudflare as the DoH server
++  overrides.dns_over_https_config = net::DnsOverHttpsConfig::FromString(dnsConfig);
 +
 +  net::HostResolver::ManagerOptions host_resolver_manager_options;
 +  host_resolver_manager_options.dns_config_overrides = overrides;
