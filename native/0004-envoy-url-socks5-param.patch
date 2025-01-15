@@ -1,10 +1,12 @@
  .../chromium/net/impl/CronetUrlRequestContext.java | 32 ++++++++++++++++-----
+ components/cronet/cronet_context.cc                |  4 +--
+ components/cronet/cronet_context.h                 |  2 +-
  components/cronet/native/engine.cc                 | 33 +++++++++++++++++-----
  components/cronet/native/sample/main.cc            | 11 ++++++--
- 3 files changed, 60 insertions(+), 16 deletions(-)
+ 5 files changed, 63 insertions(+), 19 deletions(-)
 
 diff --git a/components/cronet/android/java/src/org/chromium/net/impl/CronetUrlRequestContext.java b/components/cronet/android/java/src/org/chromium/net/impl/CronetUrlRequestContext.java
-index d3cf3bd77c417..51f5308a5e604 100644
+index 757e5065a9687..1ffd5839414bd 100644
 --- a/components/cronet/android/java/src/org/chromium/net/impl/CronetUrlRequestContext.java
 +++ b/components/cronet/android/java/src/org/chromium/net/impl/CronetUrlRequestContext.java
 @@ -35,6 +35,7 @@ import org.chromium.net.urlconnection.CronetURLStreamHandlerFactory;
@@ -15,7 +17,7 @@ index d3cf3bd77c417..51f5308a5e604 100644
  import java.net.URLStreamHandlerFactory;
  import java.util.ArrayList;
  import java.util.Collection;
-@@ -234,13 +235,30 @@ public class CronetUrlRequestContext extends CronetEngineBase {
+@@ -231,13 +232,30 @@ public class CronetUrlRequestContext extends CronetEngineBase {
                      // mUrlRequestContextAdapter is guaranteed to exist until
                      // initialization on init and network threads completes and
                      // initNetworkThread is called back on network thread.
@@ -53,8 +55,38 @@ index d3cf3bd77c417..51f5308a5e604 100644
                  }
              }
          });
+diff --git a/components/cronet/cronet_context.cc b/components/cronet/cronet_context.cc
+index 3ca9ebdd35fa7..3889fb3f7a7cb 100644
+--- a/components/cronet/cronet_context.cc
++++ b/components/cronet/cronet_context.cc
+@@ -244,10 +244,10 @@ CronetContext::NetworkTasks::~NetworkTasks() {
+     net::NetworkChangeNotifier::RemoveNetworkObserver(this);
+ }
+ 
+-void CronetContext::InitRequestContextOnInitThreadWithUri(base::StringPiece uri) {
++void CronetContext::InitRequestContextOnInitThreadWithUri(std::string uri) {
+   DCHECK(OnInitThread());
+   auto proxy_config_service =
+-      cronet::CreateFixedProxyConfigService(GetNetworkTaskRunner(), uri);
++      cronet::CreateFixedProxyConfigService(GetNetworkTaskRunner(), std::move(uri));
+   g_net_log.Get().EnsureInitializedOnInitThread();
+   GetNetworkTaskRunner()->PostTask(
+       FROM_HERE,
+diff --git a/components/cronet/cronet_context.h b/components/cronet/cronet_context.h
+index 15d86089c074d..a17127e0c3fb8 100644
+--- a/components/cronet/cronet_context.h
++++ b/components/cronet/cronet_context.h
+@@ -111,7 +111,7 @@ class CronetContext {
+   // Blocks until network thread is destroyed after running all pending tasks.
+   virtual ~CronetContext();
+ 
+-  void InitRequestContextOnInitThreadWithUri(base::StringPiece uri);
++  void InitRequestContextOnInitThreadWithUri(std::string uri);
+ 
+   // Called on init thread to initialize URLRequestContext.
+   void InitRequestContextOnInitThread();
 diff --git a/components/cronet/native/engine.cc b/components/cronet/native/engine.cc
-index a4e93b23c5b3f..d1926b3360f68 100644
+index a4e93b23c5b3f..34590fe9479d2 100644
 --- a/components/cronet/native/engine.cc
 +++ b/components/cronet/native/engine.cc
 @@ -15,6 +15,7 @@
@@ -95,7 +127,7 @@ index a4e93b23c5b3f..d1926b3360f68 100644
 +    cronet::PostTaskToInitThread(
 +      FROM_HERE,
 +      base::BindOnce(&CronetContext::InitRequestContextOnInitThreadWithUri,
-+                     base::Unretained(context_.get()), base::StringPiece(envoy_socks)));
++                     base::Unretained(context_.get()), std::move(envoy_socks)));
 +  } else if (params->envoy_url.rfind("socks5://", 0) == 0) {
 +    // socks5:// URL
 +    cronet::PostTaskToInitThread(
