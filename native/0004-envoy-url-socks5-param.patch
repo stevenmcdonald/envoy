@@ -2,11 +2,10 @@
  components/cronet/cronet_context.cc                |  4 +--
  components/cronet/cronet_context.h                 |  2 +-
  components/cronet/native/engine.cc                 | 33 +++++++++++++++++-----
- components/cronet/native/sample/main.cc            | 29 +++----------------
- 5 files changed, 58 insertions(+), 42 deletions(-)
+ 4 files changed, 54 insertions(+), 17 deletions(-)
 
 diff --git a/components/cronet/android/java/src/org/chromium/net/impl/CronetUrlRequestContext.java b/components/cronet/android/java/src/org/chromium/net/impl/CronetUrlRequestContext.java
-index 757e5065a9687..1ffd5839414bd 100644
+index d3cf3bd77c417..51f5308a5e604 100644
 --- a/components/cronet/android/java/src/org/chromium/net/impl/CronetUrlRequestContext.java
 +++ b/components/cronet/android/java/src/org/chromium/net/impl/CronetUrlRequestContext.java
 @@ -35,6 +35,7 @@ import org.chromium.net.urlconnection.CronetURLStreamHandlerFactory;
@@ -17,7 +16,7 @@ index 757e5065a9687..1ffd5839414bd 100644
  import java.net.URLStreamHandlerFactory;
  import java.util.ArrayList;
  import java.util.Collection;
-@@ -231,13 +232,30 @@ public class CronetUrlRequestContext extends CronetEngineBase {
+@@ -234,13 +235,30 @@ public class CronetUrlRequestContext extends CronetEngineBase {
                      // mUrlRequestContextAdapter is guaranteed to exist until
                      // initialization on init and network threads completes and
                      // initNetworkThread is called back on network thread.
@@ -146,51 +145,3 @@ index a4e93b23c5b3f..34590fe9479d2 100644
    }
    return CheckResult(Cronet_RESULT_SUCCESS);
  }
-diff --git a/components/cronet/native/sample/main.cc b/components/cronet/native/sample/main.cc
-index ffdb1a37fd629..7eb12a2d138ce 100644
---- a/components/cronet/native/sample/main.cc
-+++ b/components/cronet/native/sample/main.cc
-@@ -12,31 +12,10 @@ Cronet_EnginePtr CreateCronetEngine() {
-   Cronet_EnginePtr cronet_engine = Cronet_Engine_Create();
-   Cronet_EngineParamsPtr engine_params = Cronet_EngineParams_Create();
-   Cronet_EngineParams_user_agent_set(engine_params, "CronetSample/1");
--  Cronet_EngineParams_envoy_url_set(engine_params,
--                                    "https://example.com/enovy_path/");
--  Cronet_EngineParams_envoy_url_set(
--      engine_params,
--      "envoy://"
--      "?url=https%3A%2F%2Fexample.com%2Fenvoy_path%2F%3Fk1%3Dv1&header_Host="
--      "subdomain.example.com&resolve=MAP%20example.com%201.2.3.4");
--  // only MAP url-host to address
--  Cronet_EngineParams_envoy_url_set(
--      engine_params,
--      "envoy://"
--      "?url=https%3A%2F%2Fexample.com%2Fenvoy_path%2F%3Fk1%3Dv1&header_Host="
--      "subdomain.example.com&address=1.2.3.4");
--  Cronet_EngineParams_envoy_url_set(
--      engine_params,
--      "envoy://"
--      "?url=https%3A%2F%2Fexample.com%2Fenvoy_path%2F%3Fk1%3Dv1&header_Host="
--      "subdomain.example.com&address=1.2.3.4&disabled_cipher_suites=0xc024,0xc02f");
--  Cronet_EngineParams_envoy_url_set(
--      engine_params,
--      "envoy://"
--      "?url=https%3A%2F%2Fexample.com%2Fenvoy_path%2F%3Fk1%3Dv1&header_Host="
--      "subdomain.example.com&address=1.2.3.4&disabled_cipher_suites=0xc024,0xc02f");
--  Cronet_EngineParams_envoy_url_set(engine_params, "socks5://127.0.0.1:1080");
- 
-+  Cronet_EngineParams_envoy_url_set(engine_params,
-+                                    "envoy://?url=https%3A%2F%2Fwiki.epochbelt.com%2Fwikipedia%2F&socks5=http%3A%2F%2F127.0.0.1%3A33333");
-+ 
-   Cronet_EngineParams_enable_quic_set(engine_params, true);
- 
-   Cronet_Engine_StartWithParams(cronet_engine, engine_params);
-@@ -73,7 +52,7 @@ int main(int argc, const char* argv[]) {
-   std::cout << "Cronet version: "
-             << Cronet_Engine_GetVersionString(cronet_engine) << std::endl;
- 
--  std::string url(argc > 1 ? argv[1] : "https://www.example.com");
-+  std::string url(argc > 1 ? argv[1] : "https://www.google.com/generate_204");
-   std::cout << "URL: " << url << std::endl;
-   SampleExecutor executor;
-   PerformRequest(cronet_engine, url, executor.GetExecutor());
