@@ -28,7 +28,7 @@ patch --fuzz=0 --no-backup-if-mismatch --forward --strip=1 --reject-file=- --for
 patch --fuzz=0 --no-backup-if-mismatch --forward --strip=1 --reject-file=- --force <"$PATCH_DIR/0004-envoy-url-socks5-param.patch"
 
 # enable ECH
-patch --fuzz=0 --no-backup-if-mismatch --forward --strip=1 --reject-file=- --force <"$PATCH_DIR/ECH_DOH_108.patch"
+#patch --fuzz=0 --no-backup-if-mismatch --forward --strip=1 --reject-file=- --force <"$PATCH_DIR/ECH_DOH_108.patch"
 # hacky STDERR logging
 #patch --fuzz=0 --no-backup-if-mismatch --forward --strip=1 --reject-file=- --force <"$PATCH_DIR/scm_ECH_log.patch"
 
