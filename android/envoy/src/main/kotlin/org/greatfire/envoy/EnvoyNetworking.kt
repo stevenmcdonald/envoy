@@ -3,6 +3,7 @@ package org.greatfire.envoy
 import android.content.Context
 import android.util.Log
 import androidx.work.*
+import kotlinx.coroutines.*
 
 /*
     This object provides an external interface for setting up network connections with Envoy.
@@ -64,19 +65,34 @@ class EnvoyNetworking {
         return this
     }
 
+    fun nonWorkConnect() {
+        Runnable {
+            runBlocking (Dispatchers.Default) {
+                val worker = EnvoyConnectWorker(state.ctx!!)
+                worker.doWork()
+            }
+        }.run()
+
+        Log.d(TAG, "🚀🚀🚀")
+    }
+
     fun connect(): EnvoyNetworking {
         initialized = true
         Log.d(TAG, "🏄‍♂️🏄‍♂️🏄‍♂️ Starting Envoy connect...")
 
-        val workRequest = OneTimeWorkRequestBuilder<EnvoyConnectWorker>()
-            // connecting to the proxy is a high priority task
-            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            .build()
-
-        WorkManager
-            .getInstance(state.ctx!!)
-            .enqueue(workRequest)
+        nonWorkConnect()
 
         return this
+
+        // val workRequest = OneTimeWorkRequestBuilder<EnvoyConnectWorker>()
+        //     // connecting to the proxy is a high priority task
+        //     .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+        //     .build()
+
+        // WorkManager
+        //     .getInstance(state.ctx!!)
+        //     .enqueue(workRequest)
+
+        // return this
     }
 }

@@ -11,10 +11,13 @@ import kotlinx.coroutines.*
     Establish a connection to an Envoy Proxy
 */
 
+// class EnvoyConnectWorker(
+//     val context: Context,
+//     val params: WorkerParameters
+// ) : CoroutineWorker(context, params) {
 class EnvoyConnectWorker(
-    val context: Context,
-    val params: WorkerParameters
-) : CoroutineWorker(context, params) {
+    val context: Context
+) {
 
     companion object {
         private const val TAG = "EnvoyConnectWorker"
@@ -177,7 +180,7 @@ class EnvoyConnectWorker(
 
     //
     // Main entry point
-    override suspend fun doWork(): Result {
+    suspend fun doWork() {
 
         envoyTests.clear()
         jobs.clear()
@@ -212,6 +215,7 @@ class EnvoyConnectWorker(
             Log.e(TAG, "Starting Envoy failed: $e")
         }
         // if we return failure, the job is re-run, I think?
-        return Result.success()
+        // return Result.success()
+        return
     }
 }
